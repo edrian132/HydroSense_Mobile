@@ -1,1 +1,220 @@
+import { Ionicons } from "@expo/vector-icons";
+import * as NavigationBar from "expo-navigation-bar";
+import { useRouter } from "expo-router";
+import { useContext, useEffect } from "react";
+import {
+  Dimensions,
+  Image,
+  ImageBackground,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import BottomNav from "../../../components/BottomNav";
+import { SensorContext } from "../../../context/sensorcontext";
+import { ThemeContext } from "../../../context/themecontext";
+import StatusCard from "../../../screens/statuscard";
+
+const { width } = Dimensions.get("window");
+const cardMargin = 10;
+const cardWidth = (width - cardMargin * 3) / 2;
+
+// Clamp value between 0 and 100
+const clampFill = (num) => Math.min(100, Math.max(0, num));
+
+// Utility to check if value is null/undefined
+const valueIsNull = (val) => val === null || val === undefined;
+
+// Sensor card component
+const SensorCard = ({ keyName, title, unit, value, fill, route, router, statusMap }) => {
+  // Show "Disconnected" if no value
+  const status = valueIsNull(value) ? "Disconnected" : statusMap[keyName] ?? "Online";
+  const content = <StatusCard title={title} value={value} unit={unit} fill={fill} status={status} />;
+
+  return valueIsNull(value) ? (
+    <View key={keyName}>{content}</View>
+  ) : (
+    <TouchableOpacity key={keyName} onPress={() => router.push(route)}>
+      {content}
+    </TouchableOpacity>
+  );
+};
+
+// System status panel
+const StatusPanel = ({ sensorKeys, sensorData, theme, darkMode }) => {
+  const labelMap = { ph: "pH Sensor", temperature: "Temp Sensor", humidity: "Humidity Sensor", ec: "EC Sensor" };
+
+  return (
+    <View style={[styles.statusPanel, { backgroundColor: darkMode ? "#222" : "#fff" }]}>
+      {sensorKeys.map((key) => {
+        const isOnline = sensorData[key] !== null && sensorData[key] !== undefined;
+        const status = isOnline ? "Online" : "Offline";
+        const color = isOnline ? "green" : "gray";
+
+        return (
+          <View key={key} style={styles.statusItem}>
+            <View style={[styles.statusDot, { backgroundColor: color }]} />
+            <Text style={[styles.statusLabel, { color: theme.colors.text }]}>{labelMap[key]}</Text>
+            <Text style={[styles.statusText, { color }]}>{status}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
+export default function Dashboard() {
+  const router = useRouter();
+  const { theme, darkMode, toggleDarkMode } = useContext(ThemeContext);
+  const { sensorData, statusMap } = useContext(SensorContext);
+
+  useEffect(() => {
+    NavigationBar.setVisibilityAsync("hidden");
+    NavigationBar.setBehaviorAsync("overlay-swipe");
+  }, []);
+
+  const sensorKeys = ["ph", "temperature", "humidity", "ec"];
+  const labelMap = { ph: "pH Level", temperature: "Temperature", humidity: "Humidity", ec: "EC Level" };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={["top", "bottom"]}>
+      <ImageBackground source={require("../../../assets/images/bg.png")} style={{ flex: 1 }}>
+        {/* Header */}
+        <View style={[styles.header, { backgroundColor: "#8B0000" }]}>
+          <View style={styles.headerLeft}>
+            <Image source={require("../../../assets/images/logo.png")} style={styles.headerLogo} />
+            <Text style={[styles.headerTitle, { color: "#fff" }]}>Dashboard</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={toggleDarkMode} style={styles.iconButton}>
+              <Ionicons name={darkMode ? "moon" : "sunny"} size={18} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/settings/notifications")} style={styles.iconButton}>
+              <Ionicons name="notifications" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Sensor Cards */}
+        <View style={styles.contentContainer}>
+          <View style={styles.cardContainer}>
+<View style={styles.cardRow}>
+  <SensorCard
+    keyName="ph"
+    title="pH Level"
+    unit="pH"
+    value={sensorData.ph}
+    fill={clampFill((sensorData.ph ?? 0) / 14 * 100)}
+    route="/(tabs)/dashboard/ph"
+    router={router}
+    statusMap={statusMap}
+  />
+  <SensorCard
+    keyName="temperature"
+    title="Temperature"
+    unit="°C"
+    value={sensorData.temperature}
+    fill={clampFill((sensorData.temperature ?? 0) / 40 * 100)}
+    route="/(tabs)/dashboard/temperature"
+    router={router}
+    statusMap={statusMap}
+  />
+</View>
+
+<View style={styles.cardRow}>
+  <SensorCard
+    keyName="humidity"
+    title="Humidity"
+    unit="%"
+    value={sensorData.humidity}
+    fill={clampFill(sensorData.humidity ?? 0)}
+    route="/(tabs)/dashboard/humidity"
+    router={router}
+    statusMap={statusMap}
+  />
+  <SensorCard
+    keyName="ec"
+    title="EC Level"
+    unit="mS/cm"
+    value={sensorData.ec}
+    fill={clampFill((sensorData.ec ?? 0) / 3 * 100)}
+    route="/(tabs)/dashboard/ec"
+    router={router}
+    statusMap={statusMap}
+  />
+</View>
+          </View>
+
+          {/* Current Readings & System Status */}
+          <View style={[styles.unifiedCard, { backgroundColor: theme.colors.card }]}>
+            {/* Title + Last Update */}
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Current Readings</Text>
+              {sensorData.lastUpdate && !Object.values(sensorData).every(valueIsNull) && (
+                <Text style={[styles.lastUpdateInline, { color: theme.colors.text }]}>
+                  ⏱ <Text style={{ fontWeight: "600", color: darkMode ? "#ffb703" : "#8B0000" }}>{sensorData.lastUpdate}</Text>
+                </Text>
+              )}
+            </View>
+
+            {/* Readings */}
+            <View style={styles.readingsRow}>
+              {sensorKeys.map((key) => {
+                const value = sensorData[key];
+                const displayValue = valueIsNull(value)
+                  ? "No Data"
+                  : key === "ph"
+                  ? `${value} pH`
+                  : key === "temperature"
+                  ? `${value}°C`
+                  : key === "humidity"
+                  ? `${value}%`
+                  : `${value} mS/cm`;
+
+                return (
+                  <Text key={key} style={[styles.readingText, { color: theme.colors.text }]}>
+                    {labelMap[key]}:{" "}
+                    <Text style={[styles.readingValue, { color: darkMode ? "#ffb703" : "#8B0000" }]}>{displayValue}</Text>
+                  </Text>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.subTitle, { color: theme.colors.text }]}>Sensor Status</Text>
+            <StatusPanel sensorKeys={sensorKeys} sensorData={sensorData} theme={theme} darkMode={darkMode} />
+          </View>
+        </View>
+
+        <BottomNav />
+      </ImageBackground>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 18 },
+  headerLeft: { flexDirection: "row", alignItems: "center" },
+  headerRight: { flexDirection: "row", alignItems: "center" },
+  iconButton: { marginLeft: 12 },
+  headerLogo: { width: 40, height: 40, marginRight: 12, resizeMode: "contain" },
+  headerTitle: { fontSize: 20, fontWeight: "700" },
+  cardRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
+  contentContainer: { flex: 1, justifyContent: "flex-start", paddingHorizontal: 10, paddingBottom: 5 },
+  cardContainer: { marginTop: 4 },
+  unifiedCard: { borderRadius: 10, padding: 10, marginTop: 6 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  sectionTitle: { fontSize: 14, fontWeight: "700" },
+  lastUpdateInline: { fontSize: 11, textAlign: "right" },
+  readingsRow: { marginBottom: 8 },
+  readingText: { fontSize: 12, marginBottom: 4 },
+  readingValue: { fontWeight: "700", fontSize: 12 },
+  subTitle: { fontSize: 13, fontWeight: "600", marginBottom: 6 },
+  statusPanel: { flexDirection: "row", justifyContent: "space-around", flexWrap: "wrap", marginTop: 5, paddingVertical: 6, borderRadius: 8 },
+  statusItem: { alignItems: "center", marginBottom: 8, width: cardWidth / 2 - 10 },
+  statusDot: { width: 14, height: 14, borderRadius: 7, marginBottom: 4, borderWidth: 1, borderColor: "#ccc" },
+  statusLabel: { fontSize: 11, fontWeight: "600", textAlign: "center" },
+  statusText: { fontSize: 11, fontWeight: "700", textAlign: "center" },
+});
 
