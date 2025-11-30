@@ -1,21 +1,16 @@
 import { Stack } from "expo-router";
 import { SensorProvider } from "../context/sensorcontext";
 import { ThemeProvider } from "../context/themecontext";
-import TabsLayout from "./(tabs)/_layout"; // Import TabsLayout directly
 
 export default function RootLayout() {
   return (
     <ThemeProvider>
       <SensorProvider>
         <Stack screenOptions={{ headerShown: false }}>
-          {/* Login screen */}
+          {/* Login */}
           <Stack.Screen name="login/index" />
-
-          {/* Main tabs */}
-          <Stack.Screen
-            name="tabs"
-            component={TabsLayout} // Fixed: reference the actual TabsLayout component
-          />
+          
+          {/* Tabs folder loads automatically, no need to register it */}
         </Stack>
       </SensorProvider>
     </ThemeProvider>
