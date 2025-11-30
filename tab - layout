@@ -1,12 +1,34 @@
-import { Tabs } from "expo-router";
+// app/(tabs)/_layout.tsx (TEMPORARY FIX)
+
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import React from 'react';
+
+// NOTE: We are removing your custom BottomNav and Contexts for this test.
 
 export default function TabsLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
-      <Tabs.Screen name="dashboard" />
-      <Tabs.Screen name="reports" />
-      <Tabs.Screen name="profile" />
-      <Tabs.Screen name="settings" />
+    <Tabs>
+      <Tabs.Screen
+        name="dashboard" // Corresponds to app/(tabs)/dashboard/index.tsx
+        options={{
+          title: 'Home',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile/index" // Corresponds to app/(tabs)/profile/index.tsx
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      {/* Add other simple Tabs.Screen components for reports and settings here */}
     </Tabs>
   );
 }
