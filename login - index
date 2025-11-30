@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   Image,
@@ -18,17 +19,24 @@ import {
 
 const { width } = Dimensions.get("window");
 
+// ✅ SYNTAX FIXED: Added closing quote (') and semicolon (;).
+// ✅ LOGIC FIXED: Corrected endpoint from /sensor-data to /login.
+const API_URL = 'https://donn-hypsicephalic-sapientially.ngrok-free.dev/Capstone_Test/public/index.php/api/login';
+
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false); // New loading state
   const shift = useRef(new Animated.Value(0)).current;
 
+  // --- Keyboard Animation Logic ---
   useEffect(() => {
     const keyboardDidShowSub = Keyboard.addListener("keyboardDidShow", () => {
       Animated.timing(shift, {
-        toValue: -120, // lifted more (was -60)
+        toValue: -120,
         duration: 250,
         useNativeDriver: true,
       }).start();
@@ -48,14 +56,60 @@ export default function LoginPage() {
     };
   }, [shift]);
 
-  const handleLogin = () => {
-    router.push("/dashboard");
+  // --- Login Handler with Real API Logic ---
+  const handleLogin = async () => {
+    // 1. Input Validation
+    let error = "";
+    if (!email.trim()) {
+      error = "Email cannot be empty";
+    } else if (!password.trim()) {
+      error = "Password cannot be empty";
+    }
+
+    if (error) {
+      setErrorMessage(error);
+      return;
+    }
+
+    setErrorMessage("");
+    setIsLoggingIn(true); // Start loading state
+
+    // 2. API Call
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: email.trim(), 
+          password: password.trim() 
+        }),
+      });
+
+      // Handle the server response (even non-200 status codes)
+      const data = await response.json();
+
+      if (response.ok) {
+        // Success (200-299 status code)
+        console.log("Login successful! Navigating to dashboard...");
+        router.replace("/(tabs)/dashboard");
+      } else {
+        // Failure (e.g., 401 Unauthorized, 404 Not Found)
+        setErrorMessage(data.message || data.error || "Invalid email or password.");
+      }
+    } catch (err) {
+      // Network/Fetch error (e.g., server offline, wrong IP, network issue)
+      console.error("Login Network Error:", err);
+      setErrorMessage("Could not connect to the server. Check your network or API_URL.");
+    } finally {
+      setIsLoggingIn(false); // End loading state
+    }
   };
+  // ---------------------------------------------
 
   return (
     <SafeAreaView style={styles.container}>
       <ImageBackground
-        source={require("../../../assets/images/bg.png")}
+        source={require("../../assets/images/bg.png")}
         style={styles.background}
         resizeMode="cover"
       >
@@ -65,7 +119,7 @@ export default function LoginPage() {
         >
           <Animated.View style={[styles.card, { transform: [{ translateY: shift }] }]}>
             <Image
-              source={require("../../../assets/images/logo.png")}
+              source={require("../../assets/images/logo.png")}
               style={styles.logo}
             />
 
@@ -73,15 +127,26 @@ export default function LoginPage() {
 
             <Text style={styles.label}>Enter Email Address</Text>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                errorMessage.includes("Email") && { borderColor: "red" },
+              ]}
               placeholder="Email"
               placeholderTextColor="#888"
               value={email}
               onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!isLoggingIn} // Disable input while logging in
             />
 
             <Text style={styles.label}>Enter Password</Text>
-            <View style={styles.passwordContainer}>
+            <View
+              style={[
+                styles.passwordContainer,
+                errorMessage.includes("Password") && { borderColor: "red" },
+              ]}
+            >
               <TextInput
                 style={styles.passwordInput}
                 placeholder="Password"
@@ -89,24 +154,39 @@ export default function LoginPage() {
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
+                editable={!isLoggingIn} // Disable input while logging in
               />
               <TouchableOpacity
                 style={styles.eyeButton}
                 onPress={() => setShowPassword(!showPassword)}
+                disabled={isLoggingIn}
               >
                 <Image
                   source={
                     showPassword
-                      ? require("../../../assets/images/eye-open.png")
-                      : require("../../../assets/images/eye-closed.png")
+                      ? require("../../assets/images/eye-open.png")
+                      : require("../../assets/images/eye-closed.png")
                   }
                   style={styles.eyeIcon}
                 />
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.loginButton} onPress={handleLogin} activeOpacity={0.8}>
-              <Text style={styles.loginText}>LOGIN</Text>
+            {errorMessage ? (
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.loginButton, isLoggingIn && { opacity: 0.7 }]}
+              onPress={handleLogin}
+              activeOpacity={0.8}
+              disabled={isLoggingIn} // Disable button while loading
+            >
+              {isLoggingIn ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.loginText}>LOGIN</Text>
+              )}
             </TouchableOpacity>
           </Animated.View>
         </KeyboardAvoidingView>
@@ -204,5 +284,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 15,
     letterSpacing: 1,
+  },
+  errorText: {
+    color: "red",
+    marginBottom: 10,
+    alignSelf: "flex-start",
   },
 });
